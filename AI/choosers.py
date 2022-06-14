@@ -32,7 +32,7 @@ def test():
 	loadedData = []
 	loadedAnswers = []
 	
-	for subdir, dirs, files in os.walk("./data/tester2"):
+	for subdir, dirs, files in os.walk("./data/tester"):
 		for file in files:
 
 			filepath = subdir + os.sep + file
