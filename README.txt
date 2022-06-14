@@ -4,7 +4,7 @@ In order to access the webXR functionality of the pages, a compatible hardware d
 
 The only compatible device tested is the Oculus Quest 2.
 
-In order to host the websites it is required to run the webserver.js nodejs application in a command line.
+In order to host the websites it is required to run the nodejs application webserver.js in a command line.
 
 To access the pages:
 
@@ -31,4 +31,4 @@ To access the pages:
   -navigate to localhost:3000 to access the main page
   
  
- The page accessed may require a connection with another node server, in such case it is required to run the backServer.js nodejs application in a command line
+The page accessed may require a connection with another node server, in such case it is required to run the nodejs application backServer.js in a command line
