@@ -1,0 +1,362 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1, user-scalable=no'>
+  <meta name='mobile-web-app-capable' content='yes'>
+  <meta name='apple-mobile-web-app-capable' content='yes'>
+  <link rel='icon' type='image/png' sizes='32x32' href='./favicon-32x32.png'>
+  <link rel='icon' type='image/png' sizes='96x96' href='./favicon-96x96.png'>
+
+  <title>Pose Recorder</title>
+</head>
+
+<body>
+  <header>
+    <details open>
+      <summary>Pose Recorder</summary>
+      <p>
+        This webpage is dedicated to the parsing and recording of hand gestures,
+        for the purpose of gathering information.
+      </p>
+    </details>
+  </header>
+  <main style='text-align: center;'>
+    <p>Click 'Enter XR' to see content</p>
+  </main>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script type="module">
+    import { WebXRButton } from './js/util/webxr-button.js';
+    import { Scene } from './js/render/scenes/scene.js';
+    import { Node } from './js/render/core/node.js';
+    import { Renderer, createWebGLContext } from './js/render/core/renderer.js';
+    import { SkyboxNode } from './js/render/nodes/skybox.js';
+    import { BoxBuilder } from './js/render/geometry/box-builder.js';
+    import { PbrMaterial } from './js/render/materials/pbr.js';
+    import {mat4} from './js/render/math/gl-matrix.js';
+
+    // XR globals.
+
+    let xrButton = null;
+    let xrRefSpace = null;
+    let isAR = false;
+    let positions = new Float32Array(16*25);
+    
+    // Boxes
+    let boxes_left = [];
+    let boxes_right = [];
+    let boxes = { left: boxes_left, right: boxes_right };
+    const defaultBoxColor = {r: 0.5, g: 0.5, b: 0.5};
+
+    const ws = new WebSocket("ws://localhost:8000");
+    const data = {
+      frames: []
+    };
+
+    // WebGL scene globals.
+    let gl = null;
+    let renderer = null;
+    let scene = new Scene();
+    scene.addNode(new SkyboxNode({ url: './media/milky-way-4k.png' }));
+    
+    function createBoxPrimitive(r, g, b) {	
+      let boxBuilder = new BoxBuilder();	
+      boxBuilder.pushCube([0, 0, 0], 1);	
+      let boxPrimitive = boxBuilder.finishPrimitive(renderer);	
+      let boxMaterial = new PbrMaterial();	
+      boxMaterial.baseColorFactor.value = [r, g, b, 1];	
+      return renderer.createRenderPrimitive(boxPrimitive, boxMaterial);	
+    }
+
+    function addBox(x, y, z, r, g, b, offset) {
+      let boxRenderPrimitive = createBoxPrimitive(r, g, b);
+      let boxNode = new Node();
+      boxNode.addRenderPrimitive(boxRenderPrimitive);
+      // Marks the node as one that needs to be checked when hit testing.
+      boxNode.selectable = true;
+      return boxNode;
+    }
+
+    function initHands() {
+      for (const box of boxes_left) {
+        scene.removeNode(box);
+      }
+      for (const box of boxes_right) {
+        scene.removeNode(box);
+      }
+      boxes_left = [];
+      boxes_right = [];
+      boxes = { left: boxes_left, right: boxes_right };
+      if (typeof XRHand !== 'undefined') {
+        for (let i = 0; i <= 24; i++) {
+          boxes_left.push(addBox(0, 0, 0, 0.5, 0.5, 0.5));
+          boxes_right.push(addBox(0, 0, 0, 0.5, 0.5, 0.5));
+        }
+      }
+    }
+
+    // Checks to see if WebXR is available and, if so, queries a list of
+    // XRDevices that are connected to the system.
+    function initXR() {
+      // Adds a helper button to the page that indicates if any XRDevices are
+      // available and let's the user pick between them if there's multiple.
+      xrButton = new WebXRButton({
+        onRequestSession: onRequestSession,
+        onEndSession: onEndSession
+      });
+      document.querySelector('header').appendChild(xrButton.domElement);
+
+      // Is WebXR available on this UA?
+      if (navigator.xr) {
+        // If the device allows creation of exclusive sessions set it as the
+        // target of the 'Enter XR' button.
+        navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
+          if (supported)
+            xrButton.enabled = supported;
+          else
+            navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
+              isAR = true;
+              xrButton.enabled = supported;
+            });
+        });
+      }
+    }
+
+    // Called when the user selects a device to present to. In response we
+    // will request an exclusive session from that device.
+    function onRequestSession() {
+      return navigator.xr.requestSession(isAR?'immersive-ar':'immersive-vr', { optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking'] }).then(onSessionStarted);
+    }
+
+    // Called when we've successfully acquired a XRSession. In response we
+    // will set up the necessary session state and kick off the frame loop.
+    function onSessionStarted(session) {
+      // This informs the 'Enter XR' button that the session has started and
+      // that it should display 'Exit XR' instead.
+      xrButton.setSession(session);
+
+      // Listen for the sessions 'end' event so we can respond if the user
+      // or UA ends the session for any reason.
+      session.addEventListener('end', onSessionEnded);
+
+      session.addEventListener('visibilitychange', e => {
+        // remove hand controller while blurred
+        if(e.session.visibilityState === 'visible-blurred') {
+          for (const box of boxes['left']) {
+            scene.removeNode(box);
+          }
+          for (const box of boxes['right']) {
+            scene.removeNode(box);
+          }
+        }
+      });
+
+      // Create a WebGL context to render with, initialized to be compatible
+      // with the XRDisplay we're presenting to.
+      gl = createWebGLContext({
+        xrCompatible: true
+      });
+
+      // Create a renderer with that GL context (this is just for the samples
+      // framework and has nothing to do with WebXR specifically.)
+      renderer = new Renderer(gl);
+
+      initHands();
+
+      // Set the scene's renderer, which creates the necessary GPU resources.
+      scene.setRenderer(renderer);
+
+      // Use the new WebGL context to create a XRWebGLLayer and set it as the
+      // sessions baseLayer. This allows any content rendered to the layer to
+      // be displayed on the XRDevice.
+      session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
+
+      // Get a frame of reference, which is required for querying poses. In
+      // this case an 'local' frame of reference means that all poses will
+      // be relative to the location where the XRDevice was first detected.
+      session.requestReferenceSpace('local').then((refSpace) => {
+        xrRefSpace = refSpace.getOffsetReferenceSpace(new XRRigidTransform({ x: 0, y: 0, z: 0 }));
+
+        // Inform the session that we're ready to begin drawing.
+        session.requestAnimationFrame(onXRFrame);
+      });
+    }
+
+    // Called when the user clicks the 'Exit XR' button. In response we end
+    // the session.
+    function onEndSession(session) {
+      session.end();
+    }
+
+    // Called either when the user has explicitly ended the session (like in
+    // onEndSession()) or when the UA has ended the session for any reason.
+    // At this point the session object is no longer usable and should be
+    // discarded.
+    function onSessionEnded(event) {
+      xrButton.setSession(null);
+
+      // In this simple case discard the WebGL context too, since we're not
+      // rendering anything else to the screen with it.
+      renderer = null;
+    }
+
+
+    // this function updates the tracking information and also saves the data 
+    // to be processed and sent to the node server.
+    function updateInputSources(session, frame, refSpace) {
+      if(session.visibilityState === 'visible-blurred') {
+        return;
+      }
+      let sourceInput = [];
+      for (let inputSource of session.inputSources) {
+        let offset = 0;
+        if (!inputSource.hand) {
+          continue;
+        } else {
+          for (const box of boxes[inputSource.handedness]) {
+            scene.removeNode(box);
+          }
+
+          let jointRadius = 0.01346085011959076;
+          
+          if (!frame.fillPoses(inputSource.hand.values(), refSpace, positions)) {
+            console.log("no fillPoses");
+            continue;
+          }
+
+          if(inputSource.handedness === "right"){
+              
+              sourceInput[0] = inputSource.hand;
+
+          }else if (inputSource.handedness === "left"){
+              
+              sourceInput[1] = inputSource.hand;
+
+          }
+          
+          for (const box of boxes[inputSource.handedness]) {
+            scene.addNode(box);
+            let matrix = positions.slice(offset * 16, (offset + 1) * 16);
+            offset++;
+            mat4.getTranslation(box.translation, matrix);
+            mat4.getRotation(box.rotation, matrix);
+            box.scale = [jointRadius, jointRadius, jointRadius];
+          }
+        }
+      }
+      return sourceInput;
+    }
+    
+
+    // Called every time the XRSession requests that a new frame be drawn.
+    function onXRFrame(t, frame) {
+      let session = frame.session;
+
+      // Per-frame scene setup. Nothing WebXR specific here.
+      scene.startFrame();
+
+      // Inform the session that we're ready for the next frame.
+      session.requestAnimationFrame(onXRFrame);
+
+      var sourcerOfInput = updateInputSources(session, frame, xrRefSpace);
+
+
+       // Checks if we have tracking.
+       if(sourcerOfInput !== undefined){
+        const Fframe = {
+        };
+        Fframe.timestamp = t;
+        // Fills the correct parameter for the json depending on the hand that was saved. 
+        // If both were saved then it fills both in.
+        if(sourcerOfInput[0] !== undefined) frameConstruction(Fframe, sourcerOfInput[0], "right");
+        if(sourcerOfInput[1] !== undefined) frameConstruction(Fframe, sourcerOfInput[1], "left");
+
+
+        // Saves the hand frame to the global dataset.
+        data.frames.push(Fframe);
+
+        // When the data.frames is equal to 120 it has to send the info to the backserver.
+        if(data.frames.length >= 120){
+            if(ws.readyState === WebSocket.OPEN){
+                
+              ws.send(JSON.stringify({type: "HAND_DATA", payload: data}));
+              
+              // Once the information is sent, we empty the data structure to fill it with
+              // new information.
+              data.frames.length = 0;
+          }}
+         
+          
+          }
+
+
+          // takes a empty object Fframe, a XRHand object and a string to identify
+          // the handedness. 
+          // Processes the information and inserts it into the Fframe object
+          function frameConstruction(Fframe, handInputSource, hand){
+            const Rframe = {};
+            //console.log(hand);
+            //var jointNames = handInputSource.keys();
+            //console.log(jointNames.next().value); 
+            handInputSource.forEach(Logger);  
+            Fframe[hand] = Rframe;
+           
+
+              // Takes a XRJointSpace and a jointName (key) and extracts the coordinates of
+              // position and orientation.
+              function Logger(joint, key){
+              let actualPose = frame.getJointPose(joint, xrRefSpace);
+              Rframe[key] = {};
+              Rframe[key].position = actualPose.transform.position;
+              Rframe[key].orientation = actualPose.transform.orientation;
+             }
+           }
+           
+            
+
+
+          
+
+         
+
+      // Get the XRDevice pose relative to the Frame of Reference we created
+      // earlier.
+      let pose = frame.getViewerPose(xrRefSpace);
+
+      // Getting the pose may fail if, for example, tracking is lost. So we
+      // have to check to make sure that we got a valid pose before attempting
+      // to render with it. If not in this case we'll just leave the
+      // framebuffer cleared, so tracking loss means the scene will simply
+      // disappear.
+      if (pose) {
+        let glLayer = session.renderState.baseLayer;
+
+        // If we do have a valid pose, bind the WebGL layer's framebuffer,
+        // which is where any content to be displayed on the XRDevice must be
+        // rendered.
+        gl.bindFramebuffer(gl.FRAMEBUFFER, glLayer.framebuffer);
+
+        // Clear the framebuffer
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        // Loop through each of the views reported by the frame and draw them
+        // into the corresponding viewport.
+        for (let view of pose.views) {
+          let viewport = glLayer.getViewport(view);
+          gl.viewport(viewport.x, viewport.y,
+            viewport.width, viewport.height);
+          scene.draw(view.projectionMatrix, view.transform);
+        }
+      } else {
+       
+      }
+      scene.endFrame();
+    }
+
+    // Start the XR application.
+    initXR();
+  </script>
+</body>
+
+</html>

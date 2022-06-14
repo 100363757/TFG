@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+	<head>
+		<title>HOME PAGE</title>
+	</head>
+	<body>
+		<button style="text-align:center; width:28%" onclick="redirect('recorder')"> Recorder </button>
+		<button style="text-align:center; width:28%" onclick="redirect('viewer')"> Viewer </button>
+		<button style="text-align:center; width:28%" onclick="redirect('predictor')"> predictor </button>
+		<script>
+			function redirect(data){
+				if(data == 'recorder') window.location.href = window.location.href + "/pose_recorder.html";
+				if(data == 'viewer') window.location.href = window.location.href + "/pose_viewer.html";
+				if(data == 'predictor')window.location.href = window.location.href + "/pose_predictor.html";
+				}
+		</script>
+	</body>
+</html>
