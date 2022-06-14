@@ -71,6 +71,10 @@ def jsonDigest():
 			elif folder == "tester":
 
 				continue
+			
+			elif folder == "tester2":
+				
+				continue
 
 			else:
 
