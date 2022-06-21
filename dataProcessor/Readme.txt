@@ -1,1 +1,2 @@
-BackServer will create a new set of 4 folders to include all the samples used to train the neural network.
+To run the application, it is required to have nodejs installed
+Please run the command "npm install" in this directory before trying to run the node app.
