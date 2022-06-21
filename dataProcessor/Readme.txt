@@ -1,2 +1,1 @@
-backServer will save all the recording files into the main folder where the file backServer.js is located.
-It is necesary to manually sort the files into folders with the name of the class
+BackServer will create a new set of 4 folders to include all the samples used to train the neural network.
