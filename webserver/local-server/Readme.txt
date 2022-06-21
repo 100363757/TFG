@@ -1,1 +1,2 @@
-it is required to execute a npm install on the folder local-server to be able to execute the node js application
+In order to run this application, it is required to have nodejs installed
+Please run "npm install" on this directory before attempting to run the node application
