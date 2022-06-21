@@ -9,5 +9,5 @@ def converter(model):
 
 	#my_model = load_model("./models/" + modelName + ".h5")
 
-	tfjs.converters.save_keras_model(model, './..//website/static/models/' + modelName)
+	tfjs.converters.save_keras_model(model, './..//webserver/static/models/' + modelName)
 	print("model " + modelName + " saved")
