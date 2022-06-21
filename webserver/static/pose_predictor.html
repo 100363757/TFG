@@ -1,27 +1,4 @@
 <!doctype html>
-<!--
-  MIT License
-
-    Copyright 2020 The Immersive Web Community Group
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
--->
 <html>
 
 <head>
@@ -42,7 +19,11 @@
       <p>
         This website processes input from the user and classifies the poses of the right hand.
       </p>
+    <button id="load" style="text-align:center; width:28%"> Load demo model </button>
+    <button id="create" style="text-align:center; width:28%"> train new model </button>
+    <button id="loadNew" style="text-align:center; width:28%;display:none"> load new model</button>
     </details>
+    <div >
   </header>
   <main style='text-align: center;'>
     <p>Click 'Enter XR' to see content</p>
@@ -51,7 +32,6 @@
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@2.0.0/dist/tf.min.js"></script>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
   <script type="module">
-        
     import { WebXRButton } from './js/util/webxr-button.js';
     import { Scene } from './js/render/scenes/scene.js';
     import { Node } from './js/render/core/node.js';
@@ -80,12 +60,39 @@
     let xi = 0;
 
     // Loading model before initializing VR
+    let ws = new WebSocket("ws://localhost:8000");
 
     let model;
-    (async function(){
+    let available = false;
+
+    document.getElementById("load").addEventListener('click', loadModel);
+    document.getElementById("create").addEventListener('click', createNewModel);
+    document.getElementById("loadNew").addEventListener('click', loadNewModel);
+
+    async function loadModel(){
       model = await tf.loadLayersModel('http://localhost:3000/models/fast/model.json');
       initXR();
-    })();
+    }
+
+
+    function createNewModel(){
+        
+        if(ws.readyState === WebSocket.OPEN){
+          document.getElementById("create").style.display = "none";
+          ws.send(JSON.stringify({type: "TRAIN", payload: ""}));
+        }
+        
+        ws.addEventListener("message", (data) =>{
+          let available = true;
+          document.getElementById("loadNew").style.display = "block";
+      });
+    }
+
+    async function loadNewModel(){
+      model = await tf.loadLayersModel('http://localhost:3000/models/fast2/model.json');
+      initXR();
+    }
+    
 
     // WebGL scene globals.
     let gl = null;
@@ -364,7 +371,7 @@
           let tensor = tf.stack(array);
           
           // if we normalize the data we can obtain better results.
-
+          
           let predictions = await model.predict(tensor).data();
           
           var results = Array.from(predictions);
@@ -376,17 +383,7 @@
           }
 
           let detected_pose = results.indexOf(max);
-          if(detected_pose == 0){
-            console.log("flick ---> " + max);
-          }else if(detected_pose == 1){
-            console.log("fist ---> " + max);
-          }else if(detected_pose == 2){
-            console.log("like ---> " + max);
-          }else if(detected_pose == 3){
-            console.log("ring ---> " + max);
-          }else {
-            console.log("mistake");
-          }
+          console.log("gesture " + detected_pose + "with probability ->" + max);
       }
 
   </script>
