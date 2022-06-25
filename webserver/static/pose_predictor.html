@@ -78,6 +78,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
     const data = [];
     let xi = 0;
+    let pred = 0;
 
     // Loading model before initializing VR
     let ws = new WebSocket("ws://localhost:8000");
@@ -282,7 +283,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
           let jointRadius = 0.01346085011959076;
           
           if (!frame.fillPoses(inputSource.hand.values(), refSpace, positions)) {
-            console.log("no fillPoses");
+            //console.log("no fillPoses");
             continue;
           }
 
@@ -403,7 +404,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
           }
 
           let detected_pose = results.indexOf(max);
-          console.log("gesture " + detected_pose + "with probability ->" + max);
+          console.log(pred + ": gesture " + detected_pose + " with probability -> " + max);
+          pred = pred + 1;
       }
 
   </script>
