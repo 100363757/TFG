@@ -101,10 +101,9 @@ wss.on("connection", ws =>{
 	ws.on("close", ()=>{
 		console.log("connection ended");
 		isRecording = false;
+		if(files != undefined){
 		files.length = 0;
-		
-
-		
+		}
 	});
 });
 
