@@ -28,6 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   <meta name='apple-mobile-web-app-capable' content='yes'>
   <link rel='icon' type='image/png' sizes='32x32' href='./favicon-32x32.png'>
   <link rel='icon' type='image/png' sizes='96x96' href='./favicon-96x96.png'>
+  <link rel="stylesheet" href="bar.css">
 
   <title>Gesture predictor</title>
 </head>
@@ -43,6 +44,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     <button id="create" style="text-align:center; width:28%"> train new model </button>
     <button id="loadNew" style="text-align:center; width:28%;display:none"> load new model</button>
     </details>
+    <div id="loading_bar" class="meter" style="display:none">
+    <span style="width: 100%"></span>
+    </div>
     <div >
   </header>
   <main style='text-align: center;'>
@@ -91,13 +95,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     document.getElementById("loadNew").addEventListener('click', loadNewModel);
 
     async function loadModel(){
+      document.getElementById("loading_bar").style.display = "block";
       model = await tf.loadLayersModel('http://localhost:3000/models/fast/model.json');
+      document.getElementById("loading_bar").style.display = "none";
       initXR();
     }
 
 
     function createNewModel(){
-        
+        document.getElementById("loading_bar").style.display = "block";
         if(ws.readyState === WebSocket.OPEN){
           document.getElementById("create").style.display = "none";
           ws.send(JSON.stringify({type: "TRAIN", payload: ""}));
@@ -105,12 +111,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
         
         ws.addEventListener("message", (data) =>{
           let available = true;
-          document.getElementById("loadNew").style.display = "block";
+          document.getElementById("loading_bar").style.display = "none";
+          document.getElementById("loadNew").style.display = "inline";
       });
     }
 
     async function loadNewModel(){
+      document.getElementById("loading_bar").style.display = "block";
       model = await tf.loadLayersModel('http://localhost:3000/models/fast2/model.json');
+      document.getElementById("loading_bar").style.display = "none";
       initXR();
     }
     

@@ -28,6 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   <meta name='apple-mobile-web-app-capable' content='yes'>
   <link rel='icon' type='image/png' sizes='32x32' href='./favicon-32x32.png'>
   <link rel='icon' type='image/png' sizes='96x96' href='./favicon-96x96.png'>
+   <link rel="stylesheet" href="bar.css">
 
   <title>Pose Recorder</title>
 </head>
@@ -44,6 +45,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   </header>
   <main style='text-align: center;'>
     <p>Click 'Enter XR' to see content</p>
+    <div id="loading_bar" class="meter" style="display:none">
+    <span style="width: 100%"></span>
+    </div>
   </main>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
   <script type="module">
@@ -70,9 +74,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     const defaultBoxColor = {r: 0.5, g: 0.5, b: 0.5};
 
     const ws = new WebSocket("ws://localhost:8000");
+    document.getElementById("loading_bar").style.display = "block";
     const data = {
       frames: []
     };
+    ws.addEventListener("open", ()=>{
+      document.getElementById("loading_bar").style.display = "none";
+    })
 
     // WebGL scene globals.
     let gl = null;

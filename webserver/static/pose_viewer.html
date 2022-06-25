@@ -28,7 +28,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   <meta name='apple-mobile-web-app-capable' content='yes'>
   <link rel='icon' type='image/png' sizes='32x32' href='./favicon-32x32.png'>
   <link rel='icon' type='image/png' sizes='96x96' href='./favicon-96x96.png'>
-
+  <link rel="stylesheet" href="bar.css">
   <title>Pose Viewer</title>
 </head>
 
@@ -44,6 +44,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   </header>
   <main style='text-align: center;'>
     <p>Click 'Enter XR' to see content</p>
+    <div id="loading_bar" class="meter" style="display:none">
+    <span style="width: 100%"></span>
+    </div>
   </main>
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
   <script type="module">
@@ -72,7 +75,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     // reader variables and ws setup.
 
     const ws = new WebSocket("ws://localhost:8000");
-
+    document.getElementById("loading_bar").style.display = "block";
     let repeat = 3;
     let first = true;
 
@@ -84,6 +87,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     // Waits for the json data to be received from the websocket connection
     // before allowing the loading of the VR.
     ws.addEventListener("message", (data) =>{
+      document.getElementById("loading_bar").style.display = "none";
       jsonData = loader(data);
       if (first == true){
       first = false;
