@@ -23,14 +23,30 @@ var length;
 var counter = 0;
 var saveFolder = -1;
 var isRecording = false;
+var isReproducing = false;
 var trainning = false;
+var breakLoop = 0;
 
-function readFolder(filepath){
+function readFolder(folder){
+filepath =__dirname + "/" + folder;
 fs.readdir(filepath, (err, file)=>{
 	if(err) throw err;
+	if(file.length != 0){
 	files = file;
 	length = file.length;
+	breakLoop = 0;
 	console.log("files from folder " + folder + " have been succesfully loaded");
+	}
+	else{
+		breakLoop = breakLoop + 1;
+		if(breakLoop > 5){
+		console.log("no saved files in the system")
+		}else{
+		foldern = (folder == 3)? 0: folder + 1;
+		readFolder(foldern);
+		}
+	}	
+	
 });
 }
 
@@ -39,9 +55,8 @@ wss.on("connection", ws =>{
 	console.log("connection established");
 	saveFolder = (saveFolder == 3)? 0: saveFolder + 1;
 	folder = (folder == 3)? 0: folder + 1;
-	filepath =__dirname + "/" + folder;
+	readFolder(folder);
 	counter = 0;
-	readFolder(filepath);
 	console.log("saving on label " + saveFolder);
 	ws.on("message", data =>{
 		const msg = JSON.parse(data);
@@ -87,6 +102,9 @@ wss.on("connection", ws =>{
 		console.log("connection ended");
 		isRecording = false;
 		files.length = 0;
+		
+
+		
 	});
 });
 
